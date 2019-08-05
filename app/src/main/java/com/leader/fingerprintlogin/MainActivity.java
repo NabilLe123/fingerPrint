@@ -1,15 +1,6 @@
 package com.leader.fingerprintlogin;
 
-import android.Manifest;
-import android.annotation.TargetApi;
-import android.app.KeyguardManager;
-import android.content.pm.PackageManager;
-import android.hardware.fingerprint.FingerprintManager;
-import android.os.Build;
 import android.os.Bundle;
-import android.security.keystore.KeyGenParameterSpec;
-import android.security.keystore.KeyPermanentlyInvalidatedException;
-import android.security.keystore.KeyProperties;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -19,24 +10,9 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.biometric.BiometricPrompt;
-import androidx.core.content.ContextCompat;
 
-import java.io.IOException;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.UnrecoverableKeyException;
-import java.security.cert.CertificateException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
 
 public class MainActivity extends AppCompatActivity {
 //    private FingerprintManager fingerprintManager;
@@ -45,6 +21,9 @@ public class MainActivity extends AppCompatActivity {
 //    private KeyStore keyStore;
 //    private Cipher cipher;
 //    private String KEY_NAME = "AndroidKey";
+
+    private BiometricPrompt biometricPrompt;
+    private BiometricPrompt.PromptInfo promptInfo;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -101,44 +80,62 @@ public class MainActivity extends AppCompatActivity {
 
 
         //for new biometric api
-
-        Executor executor = Executors.newSingleThreadExecutor();
-        final BiometricPrompt biometricPrompt = new BiometricPrompt(this, executor, new BiometricPrompt.AuthenticationCallback() {
-            @Override
-            public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
-                super.onAuthenticationError(errorCode, errString);
-                if (errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
-                    handlerThread("negative button");
-                } else {
-                    handlerThread("unrecoverable error " + errString);
-                }
-            }
-
-            @Override
-            public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
-                super.onAuthenticationSucceeded(result);
-                handlerThread("onAuthenticationSucceeded " + result);
-            }
-
-            @Override
-            public void onAuthenticationFailed() {
-                super.onAuthenticationFailed();
-                handlerThread("onAuthenticationFailed");
-            }
-        });
-
-        final BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Set the title to display.")
-                .setSubtitle("Set the subtitle to display.")
-                .setDescription("Set the description to display")
-                .setNegativeButtonText("Negative Button")
-                .build();
-
         final Button btn_bio = findViewById(R.id.btn_bio);
+
+        if (!BiometricUtils.isSdkVersionSupported()) {
+            tv_finger_print.setText("Below marshmallow. Not Possible");
+            btn_bio.setVisibility(View.GONE);
+        } else if (!BiometricUtils.isHardwareSupported(this)) {
+            tv_finger_print.setText("Fingerprint Scanner not detected in Device");
+            btn_bio.setVisibility(View.GONE);
+        } else if (!BiometricUtils.isPermissionGranted(this)) {
+            tv_finger_print.setText("Permission not granted to use Fingerprint Scanner");
+            btn_bio.setVisibility(View.GONE);
+        } else if (!BiometricUtils.isFingerprintAvailable(this)) {
+            tv_finger_print.setText("You should add at least 1 Fingerprint to use this Feature");
+            btn_bio.setVisibility(View.GONE);
+        } else {
+            tv_finger_print.setText("Click \"New Bio\" button and Place your Finger on Scanner to Access the App.");
+            btn_bio.setVisibility(View.VISIBLE);
+
+            Executor executor = Executors.newSingleThreadExecutor();
+            biometricPrompt = new BiometricPrompt(this, executor, new BiometricPrompt.AuthenticationCallback() {
+                @Override
+                public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+                    super.onAuthenticationError(errorCode, errString);
+                    if (errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
+                        handlerThread("negative button");
+                    } else {
+                        handlerThread("unrecoverable error " + errString);
+                    }
+                }
+
+                @Override
+                public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+                    super.onAuthenticationSucceeded(result);
+                    handlerThread("onAuthenticationSucceeded " + result);
+                }
+
+                @Override
+                public void onAuthenticationFailed() {
+                    super.onAuthenticationFailed();
+                    handlerThread("onAuthenticationFailed");
+                }
+            });
+
+            promptInfo = new BiometricPrompt.PromptInfo.Builder()
+                    .setTitle(getString(R.string.app_name))
+                    .setSubtitle("Use your finger print for faster login")
+                    .setDescription("Place your finger print in the scanner to login without username/password")
+                    .setNegativeButtonText("Cancel")
+                    .build();
+        }
+
         btn_bio.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                biometricPrompt.authenticate(promptInfo);
+                if (biometricPrompt != null && promptInfo != null)
+                    biometricPrompt.authenticate(promptInfo);
             }
         });
     }
