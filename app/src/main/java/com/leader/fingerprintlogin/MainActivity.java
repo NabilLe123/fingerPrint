@@ -16,7 +16,9 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.biometric.BiometricPrompt;
 import androidx.core.content.ContextCompat;
 
 import java.io.IOException;
@@ -28,6 +30,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -50,8 +54,8 @@ public class MainActivity extends AppCompatActivity {
         final TextView tv_finger_print = findViewById(R.id.tv_finger_print);
         final EditText et_username = findViewById(R.id.et_username);
         final EditText et_password = findViewById(R.id.et_password);
-        Button btn_done = findViewById(R.id.btn_done);
 
+        final Button btn_done = findViewById(R.id.btn_done);
         btn_done.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -94,6 +98,57 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
+
+
+        //for new biometric api
+
+        Executor executor = Executors.newSingleThreadExecutor();
+        final BiometricPrompt biometricPrompt = new BiometricPrompt(this, executor, new BiometricPrompt.AuthenticationCallback() {
+            @Override
+            public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+                super.onAuthenticationError(errorCode, errString);
+                if (errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
+                    handlerThread("negative button");
+                } else {
+                    handlerThread("unrecoverable error " + errString);
+                }
+            }
+
+            @Override
+            public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+                super.onAuthenticationSucceeded(result);
+                handlerThread("onAuthenticationSucceeded " + result);
+            }
+
+            @Override
+            public void onAuthenticationFailed() {
+                super.onAuthenticationFailed();
+                handlerThread("onAuthenticationFailed");
+            }
+        });
+
+        final BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+                .setTitle("Set the title to display.")
+                .setSubtitle("Set the subtitle to display.")
+                .setDescription("Set the description to display")
+                .setNegativeButtonText("Negative Button")
+                .build();
+
+        final Button btn_bio = findViewById(R.id.btn_bio);
+        btn_bio.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                biometricPrompt.authenticate(promptInfo);
+            }
+        });
+    }
+
+    private void handlerThread(final String message) {
+        runOnUiThread(new Runnable() {
+            public void run() {
+                Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void onSuccess() {
