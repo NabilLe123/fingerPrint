@@ -2,7 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.leader.fingerprintlogin">
 
-    <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
+    <!-- Add the following permission to the app for biometric access -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
+    <!-- This permission is depreciated in Android P  -->
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
 
     <application
         android:allowBackup="true"
